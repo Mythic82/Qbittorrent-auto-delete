@@ -1,12 +1,22 @@
+# Qbittorrent-auto-delete
+
+Tired of managing complex seeding rules and manually selecting torrents to remove when your disk space runs low? This script is designed to simplify your life. Once set up, you only need to define seeding rules for each category. Then, as you add new torrents to these categories, they'll be managed automatically.
+When your drive starts to fill up, the script takes action. It prioritizes removing the least performing torrents - those with the lowest seeding ratio over the past month. This process continues until it reaches your specified free disk space or torrent count.
+With this tool, you can:
+
+Automate torrent management
+Maintain optimal disk space
+Ensure your best-performing torrents keep seeding
+
+Say goodbye to manual torrent management and hello to a more efficient, hands-off approach!
+
 ## Support the Project
 
 If you find this project helpful and want to support its development, you can buy me a coffee!
 
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-☕-yellow.svg)](https://www.buymeacoffee.com/Mythic82)
 
-# Qbittorrent-auto-delete
-
-A Python script that automatically manages torrents in qBittorrent based on specified seeding rules, available disk space, and number of seeding torrents.
+This is a Python script that automatically manages torrents in qBittorrent based on specified seeding rules, available disk space, and number of seeding torrents.
 
 ## Overview
 
