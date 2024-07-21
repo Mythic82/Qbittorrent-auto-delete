@@ -64,12 +64,6 @@ The script uses a `config.ini` file for its settings. (Example configuration det
 
 A separate module (`torrent_ratio_logger.py`) manages the `torrent_ratio_log.json` file, tracking ratio history of torrents over time.
 
-### Key Features
-
-1. API Session Management
-2. Data Processing (daily updates, entry management)
-3. Statistics Logging
-
 ## Recommended Usage
 
 1. Run `torrent_ratio_logger.py` once daily.
