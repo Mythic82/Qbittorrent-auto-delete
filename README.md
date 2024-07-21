@@ -78,9 +78,9 @@ A separate module (`torrent_ratio_logger.py`) manages the `torrent_ratio_log.jso
 ### Automating
 
 Add to your crontab in linux / User scripts in Unraid / Task Scheduler in windows:
-0 0 * * * /usr/bin/python /path/to/your/torrent_ratio_logger.py
-0 * * * * /usr/bin/python /path/to/your/main.py
-@reboot pip install -r /path/to/your/requirements.txt
+- 0 0 * * * /usr/bin/python /path/to/your/torrent_ratio_logger.py
+- 0 * * * * /usr/bin/python /path/to/your/main.py
+- @reboot pip install -r /path/to/your/requirements.txt
 
 ## Test Mode
 
