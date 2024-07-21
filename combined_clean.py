@@ -7,7 +7,7 @@ import logger_utils
 import torrent_utils
 from configparser import ConfigParser
 
-def check_space_and_remove_torrents(session: requests.Session, logger: Logger, config: ConfigParser, test_mode: bool) -> None:
+def check_space_and_remove_torrents(session: requests.Session, logger: Logger, config: ConfigParser, test_mode: bool, bonus_rules: Dict[str, Dict[str, Any]]) -> None:
     api_address = config.get('login', 'address')
     download_minspace_gb = config.getfloat('cleanup', 'download_minspace_gb')
     min_space_gb = config.getfloat('cleanup', 'min_space_gb')
@@ -53,7 +53,8 @@ def check_space_and_remove_torrents(session: requests.Session, logger: Logger, c
         session,
         api_address,
         test_mode,
-        os.path.join(script_directory, 'torrent_ratio_log.json')
+        os.path.join(script_directory, 'torrent_ratio_log.json'),
+        bonus_rules
     ) if space_needed > 0 or additional_space_needed > 0 else []
 
     torrents_removed_by_count = torrent_utils.remove_torrents_by_count(
@@ -69,20 +70,22 @@ def check_space_and_remove_torrents(session: requests.Session, logger: Logger, c
     all_removed_torrents = torrents_removed_by_space + torrents_removed_by_count
 
     if all_removed_torrents:
-        log_removal_info(logger, free_space, total_remaining_size_gb, space_needed, additional_space_needed, all_removed_torrents, test_mode)
+        log_removal_info(logger, free_space, total_remaining_size_gb, space_needed, additional_space_needed, all_removed_torrents, test_mode, bonus_rules)
 
 def log_removal_info(logger: Logger, free_space: float, total_remaining_size_gb: float, 
                      space_needed: float, additional_space_needed: float, 
-                     all_removed_torrents: List[Dict[str, Any]], test_mode: bool) -> None:
+                     all_removed_torrents: List[Dict[str, Any]], test_mode: bool,
+                     bonus_rules: Dict[str, Dict[str, Any]]) -> None:
     """Log information about removed or would-be removed torrents."""
     logger.info(f"{'TEST MODE: ' if test_mode else ''}Free: {free_space:.2f} GB, "
                 f"DLremain: {total_remaining_size_gb:.1f} GB, "
                 f"Diskneed: {max(space_needed, additional_space_needed):.0f} GB")
-    logger_utils.log_torrent_removal_info(all_removed_torrents, logger, test_mode)
+    logger_utils.log_torrent_removal_info(all_removed_torrents, logger, test_mode, bonus_rules)
 
 def main(test_mode: bool, logger: Logger, handler: Any, config: ConfigParser, session: requests.Session) -> None:
     try:
-        check_space_and_remove_torrents(session, logger, config, test_mode)
+        bonus_rules = torrent_utils.load_bonus_rules(config)
+        check_space_and_remove_torrents(session, logger, config, test_mode, bonus_rules)
     except Exception as e:
         logger.error(f"An error occurred: {e}")
     finally:

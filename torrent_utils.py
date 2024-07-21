@@ -4,7 +4,7 @@ from shutil import disk_usage
 import requests
 import json
 import configparser
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple
 from logging import Logger
 
 # Constants
@@ -60,7 +60,54 @@ def load_ratio_log(log_file_path: str) -> Dict[str, List[Dict[str, Any]]]:
         print(f"Error decoding JSON from {log_file_path}: {str(e)}")
         return {}
 
-def calculate_average_ratio(torrent: Dict[str, Any], log_file_path: str, logger: Logger) -> float:
+def load_bonus_rules(config: configparser.ConfigParser) -> Dict[str, Dict[str, Any]]:
+    """Load bonus rules from config."""
+    bonus_rules = {}
+    categories = [cat.strip() for cat in config.get('bonus_rules', 'categories').split(',')]
+    
+    for category in categories:
+        section = f'{category}_bonus'
+        if config.has_section(section):
+            bonus_rules[category] = {
+                'min_weeks': config.getfloat(section, 'min_weeks'),
+                'time_multipliers': parse_multipliers(config.get(section, 'time_multipliers')),
+                'size_multipliers': parse_multipliers(config.get(section, 'size_multipliers')),
+                'extra_multiplier_weeks': config.getfloat(section, 'extra_multiplier_weeks'),
+                'extra_multiplier_value': config.getfloat(section, 'extra_multiplier_value')
+            }
+    return bonus_rules
+
+def parse_multipliers(multiplier_string: str) -> List[Tuple[float, float]]:
+    """Parse multiplier string into a list of tuples."""
+    return [(float(pair.split(':')[0]), float(pair.split(':')[1])) 
+            for pair in multiplier_string.split(',')]
+
+def get_multiplier(value: float, multipliers: List[Tuple[float, float]]) -> float:
+    """Get the appropriate multiplier based on the value."""
+    for threshold, multiplier in reversed(multipliers):
+        if value >= threshold:
+            return multiplier
+    return 1.0
+
+def apply_bonus_rules(torrent: Dict[str, Any], bonus_rules: Dict[str, Dict[str, Any]], logger: Logger) -> float:
+    """Apply bonus rules to calculate the average ratio change."""
+    torrent_category = torrent.get('category', '')
+    weeks_seeded = torrent.get('seeding_time', 0) / SECONDS_PER_WEEK
+    torrent_size = torrent.get('size', 0)
+    
+    if torrent_category in bonus_rules and weeks_seeded > bonus_rules[torrent_category]['min_weeks']:
+        logger.debug(f"{torrent_category} category adjustments for torrent: {torrent['name']}")
+        
+        time_multiplier = get_multiplier(weeks_seeded, bonus_rules[torrent_category]['time_multipliers'])
+        size_multiplier = get_multiplier(torrent_size / BYTES_TO_GB, bonus_rules[torrent_category]['size_multipliers'])
+        extra_multiplier = (bonus_rules[torrent_category]['extra_multiplier_value'] 
+                            if weeks_seeded >= bonus_rules[torrent_category]['extra_multiplier_weeks'] else 1.0)
+        
+        return time_multiplier * size_multiplier * extra_multiplier
+    
+    return 1.0
+
+def calculate_average_ratio(torrent: Dict[str, Any], log_file_path: str, logger: Logger, bonus_rules: Dict[str, Dict[str, Any]]) -> float:
     """Calculate average ratio for a torrent."""
     ratio_log = load_ratio_log(log_file_path)
     ratio_records = ratio_log.get(torrent['hash'], [])
@@ -79,54 +126,10 @@ def calculate_average_ratio(torrent: Dict[str, Any], log_file_path: str, logger:
     else:
         average_ratio_change = current_ratio / weeks_seeded if current_ratio != 0 else 0
 
-    torrent_size = torrent.get('size', 0)
-    torrent_category = torrent.get('category', '')
-    
-    if torrent_category == 'SB' and weeks_seeded > 1:
-        logger.debug(f"SB category adjustments for torrent: {torrent['name']}")
-        
-        time_multiplier = get_time_multiplier(weeks_seeded)
-        size_multiplier = get_size_multiplier(torrent_size)
-        extra_multiplier = 1.2 if weeks_seeded >= 4 else 1.0
-
-        average_ratio_change *= time_multiplier * size_multiplier * extra_multiplier
+    bonus_multiplier = apply_bonus_rules(torrent, bonus_rules, logger)
+    average_ratio_change *= bonus_multiplier
 
     return average_ratio_change
-
-def get_time_multiplier(weeks_seeded: float) -> float:
-    """Get time multiplier based on seeding time."""
-    if weeks_seeded >= 56: return 3
-    elif weeks_seeded >= 55: return 2.875
-    elif weeks_seeded >= 54: return 2.75
-    elif weeks_seeded >= 53: return 2.625
-    elif weeks_seeded >= 36: return 2.5
-    elif weeks_seeded >= 35: return 2.375
-    elif weeks_seeded >= 34: return 2.25
-    elif weeks_seeded >= 33: return 2.125
-    elif weeks_seeded >= 20: return 2
-    elif weeks_seeded >= 19: return 1.95
-    elif weeks_seeded >= 18: return 1.9
-    elif weeks_seeded >= 17: return 1.85
-    elif weeks_seeded >= 12: return 1.8
-    elif weeks_seeded >= 11: return 1.7
-    elif weeks_seeded >= 10: return 1.6
-    elif weeks_seeded >= 9: return 1.5
-    elif weeks_seeded >= 8: return 1.4
-    elif weeks_seeded >= 7: return 1.35
-    elif weeks_seeded >= 6: return 1.3
-    elif weeks_seeded >= 5: return 1.225
-    elif weeks_seeded >= 4: return 1.125
-    elif weeks_seeded >= 3: return 1.1
-    elif weeks_seeded >= 2: return 1.05
-    else: return 1
-
-def get_size_multiplier(torrent_size: int) -> float:
-    """Get size multiplier based on torrent size."""
-    size_gb = torrent_size / BYTES_TO_GB
-    if size_gb >= 20: return 1.3
-    elif size_gb >= 10: return 1.2
-    elif size_gb >= 4: return 1.1
-    else: return 1.0
 
 def get_category_rules(config: configparser.ConfigParser) -> Dict[str, Dict[str, float]]:
     """Get seed time and ratio rules for each category."""
@@ -179,14 +182,15 @@ def remove_torrent(session: requests.Session, api_address: str, torrent_hash: st
         logger.error(f"Failed to remove torrent {torrent_hash}: {str(e)}")
 
 def remove_torrents_by_space(torrents: List[Dict[str, Any]], categories_space: List[str], space_needed: float, drive_path: str, 
-                             logger: Logger, session: requests.Session, api_address: str, test_mode: bool, log_file_path: str) -> List[Dict[str, Any]]:
+                             logger: Logger, session: requests.Session, api_address: str, test_mode: bool, log_file_path: str,
+                             bonus_rules: Dict[str, Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Remove torrents to free up space."""
     space_freed = 0.0
     torrents_removed_info = []
 
     torrents_in_categories = [t for t in torrents if t['category'].lower() in categories_space]
     for torrent in torrents_in_categories:
-        torrent['average_ratio'] = calculate_average_ratio(torrent, log_file_path, logger)
+        torrent['average_ratio'] = calculate_average_ratio(torrent, log_file_path, logger, bonus_rules)
 
     torrents_sorted = sorted(torrents_in_categories, key=lambda t: (t['average_ratio'], -t['seeding_time']))
 
