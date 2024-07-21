@@ -1,3 +1,9 @@
+## Support the Project
+
+If you find this project helpful and want to support its development, you can buy me a coffee!
+
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-☕-yellow.svg)](https://www.buymeacoffee.com/Mythic82)
+
 # Qbittorrent-auto-delete
 
 A Python script that automatically manages torrents in qBittorrent based on specified seeding rules, available disk space, and number of seeding torrents.
