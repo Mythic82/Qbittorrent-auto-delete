@@ -52,7 +52,7 @@ To run in test mode (no actual deletions), use: `python main.py --test`
 
 ## Configuration
 
-The script uses a `config.ini` file for its settings. (Example configuration details should be added here)
+The script uses a `config.ini` file for its settings.
 
 ## Logging
 
