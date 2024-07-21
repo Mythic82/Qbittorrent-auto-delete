@@ -75,13 +75,12 @@ A separate module (`torrent_ratio_logger.py`) manages the `torrent_ratio_log.jso
 1. Run `torrent_ratio_logger.py` once daily.
 2. Run `main.py` once every hour.
 
-### Automating with Cron Jobs (Unix-based systems)
+### Automating
 
-Add to your crontab:
+Add to your crontab in linux / User scripts in Unraid / Task Scheduler in windows:
 0 0 * * * /usr/bin/python /path/to/your/torrent_ratio_logger.py
 0 * * * * /usr/bin/python /path/to/your/main.py
-Copy
-For Windows, use Task Scheduler for similar automation.
+@reboot pip install -r /path/to/your/requirements.txt
 
 ## Test Mode
 
