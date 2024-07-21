@@ -16,8 +16,6 @@ If you find this project helpful and want to support its development, you can bu
 
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-☕-yellow.svg)](https://www.buymeacoffee.com/Mythic82)
 
-This is a Python script that automatically manages torrents in qBittorrent based on specified seeding rules, available disk space, and number of seeding torrents.
-
 ## Overview
 
 This script automates the process of maintaining your qBittorrent instance by:
