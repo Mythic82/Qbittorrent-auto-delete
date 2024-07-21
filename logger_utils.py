@@ -43,13 +43,16 @@ class PrependingRotatingFileHandler(RotatingFileHandler):
                 self.log_entries = []
                 self.first_entry = True
 
-def setup_logger(log_file_name: str = '/mnt/ssd/Download/deletelog.txt') -> Tuple[logging.Logger, PrependingRotatingFileHandler]:
-    handler = PrependingRotatingFileHandler(log_file_name, maxBytes=MAX_BYTES, backupCount=BACKUP_COUNT)
+def setup_logger(log_file_name: str = 'deletelog.txt') -> Tuple[logging.Logger, PrependingRotatingFileHandler]:
+    script_directory = os.path.dirname(os.path.abspath(__file__))
+    log_file_path = os.path.join(script_directory, log_file_name)
+    
+    handler = PrependingRotatingFileHandler(log_file_path, maxBytes=MAX_BYTES, backupCount=BACKUP_COUNT)
     log_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     handler.setFormatter(log_formatter)
     logger = logging.getLogger()
     logger.addHandler(handler)
-    logger.setLevel(logging.INFO)  # Change this to DEBUG
+    logger.setLevel(logging.INFO)
     return logger, handler
 
 def log_torrent_removal_info(torrents_info: List[Dict[str, Any]], logger: logging.Logger, test_mode: bool, bonus_rules: Dict[str, Dict[str, Any]]) -> None:
