@@ -62,9 +62,6 @@ A separate module (`torrent_ratio_logger.py`) manages the `torrent_ratio_log.jso
 2. Data Processing (daily updates, entry management)
 3. Statistics Logging
 
-### Usage
-python torrent_ratio_logger.py
-Copy
 ## Recommended Usage
 
 1. Run `torrent_ratio_logger.py` once daily.
