@@ -15,7 +15,8 @@ def check_space_and_remove_torrents(session: requests.Session, logger: Logger, c
     categories_count = [cat.strip().lower() for cat in config.get('cleanup', 'categories_to_check_for_number').split(',')]
 
     script_directory = os.path.dirname(os.path.abspath(__file__))
-    drive_path = torrent_utils.get_drive_path(script_directory)
+    configured_drive_path = config.get('cleanup', 'drive_path', fallback='').strip()
+    drive_path = configured_drive_path if configured_drive_path else torrent_utils.get_drive_path(script_directory)
     free_space = torrent_utils.get_free_space(drive_path)
 
     try:
