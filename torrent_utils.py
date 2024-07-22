@@ -22,9 +22,6 @@ def get_drive_path(file_path: str) -> str:
 
 def get_free_space(drive_path: str) -> float:
     """Get free space on a given drive in GB."""
-    if platform.system() == 'Windows' and len(drive_path) == 2 and drive_path[1] == ':':
-        # It's a Windows drive letter, add a backslash
-        drive_path += '\\'
     return disk_usage(drive_path).free / BYTES_TO_GB
 
 def load_configuration(script_directory: str) -> configparser.ConfigParser:

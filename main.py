@@ -1,5 +1,6 @@
 import sys
 import os
+import platform
 import requests
 from typing import List, Dict, Any
 from logging import Logger
@@ -17,16 +18,7 @@ def check_space_and_remove_torrents(session: requests.Session, logger: Logger, c
     script_directory = os.path.dirname(os.path.abspath(__file__))
     configured_drive_path = config.get('cleanup', 'drive_path', fallback='').strip()
     
-    if configured_drive_path:
-        # Use the configured path
-        drive_path = configured_drive_path
-    else:
-        # Fall back to script directory
-        drive_path = script_directory
-        
-        # For Windows, we need to get the drive of the script directory
-        if platform.system() == 'Windows':
-            drive_path = os.path.splitdrive(script_directory)[0] + '\\'
+    drive_path = configured_drive_path if configured_drive_path else script_directory
 
     free_space = torrent_utils.get_free_space(drive_path)
 
