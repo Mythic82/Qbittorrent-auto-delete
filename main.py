@@ -66,7 +66,8 @@ def check_space_and_remove_torrents(session: requests.Session, logger: Logger, c
         api_address, 
         test_mode,
         os.path.join(script_directory, 'torrent_ratio_log.json'),
-        bonus_rules
+        bonus_rules,
+        config.getboolean('cleanup', 'sort_count_removal_by_size', fallback=False)
     )
 
     all_removed_torrents = torrents_removed_by_space + torrents_removed_by_count

@@ -214,7 +214,8 @@ def remove_torrents_by_space(torrents: List[Dict[str, Any]], categories_space: L
 
 def remove_torrents_by_count(torrents: List[Dict[str, Any]], categories_number: List[str], max_torrents: int, 
                              logger: Logger, session: requests.Session, api_address: str, test_mode: bool,
-                             log_file_path: str, bonus_rules: Dict[str, Dict[str, Any]]) -> List[Dict[str, Any]]:
+                             log_file_path: str, bonus_rules: Dict[str, Dict[str, Any]], 
+                             sort_by_size: bool = False) -> List[Dict[str, Any]]:
     """Remove torrents to maintain a maximum count per category."""
     torrents_removed_info = []
 
@@ -224,11 +225,16 @@ def remove_torrents_by_count(torrents: List[Dict[str, Any]], categories_number: 
         if len(category_torrents) > max_torrents:
             logger.info(f"Category '{category}' has {len(category_torrents)} torrents, exceeding the limit of {max_torrents}")
             
-            for torrent in category_torrents:
-                torrent['average_ratio'] = calculate_average_ratio(torrent, log_file_path, logger, bonus_rules)
-
-            sorted_torrents = sorted(category_torrents, key=lambda t: (t['average_ratio'], -t['seeding_time'], -t['size'], t['name']))
+            if sort_by_size:
+                sorted_torrents = sorted(category_torrents, key=lambda t: t['size'], reverse=True)
+            else:
+                for torrent in category_torrents:
+                    torrent['average_ratio'] = calculate_average_ratio(torrent, log_file_path, logger, bonus_rules)
+                sorted_torrents = sorted(category_torrents, key=lambda t: (t['average_ratio'], -t['seeding_time']))
+            
             torrents_to_remove = sorted_torrents[:len(category_torrents) - max_torrents]
+            
+            logger.info(f"Removing {len(torrents_to_remove)} torrents from category '{category}'")
             
             for torrent in torrents_to_remove:
                 torrent_info = {
