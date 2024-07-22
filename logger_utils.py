@@ -3,6 +3,7 @@ from logging.handlers import RotatingFileHandler
 import os
 from typing import Tuple, List, Dict, Any
 import torrent_utils
+import configparser
 
 # Constants
 MAX_BYTES = 1 * 1024 * 1024  # 1 MB
@@ -55,7 +56,7 @@ def setup_logger(log_file_name: str = 'deletelog.txt') -> Tuple[logging.Logger, 
     logger.setLevel(logging.INFO)
     return logger, handler
 
-def log_torrent_removal_info(torrents_info: List[Dict[str, Any]], logger: logging.Logger, test_mode: bool, bonus_rules: Dict[str, Dict[str, Any]]) -> None:
+def log_torrent_removal_info(torrents_info: List[Dict[str, Any]], logger: logging.Logger, test_mode: bool, bonus_rules: Dict[str, Dict[str, Any]], config: configparser.ConfigParser) -> None:
     if not torrents_info:
         logger.info("No torrents to remove based on current rules.")
         return
@@ -69,7 +70,7 @@ def log_torrent_removal_info(torrents_info: List[Dict[str, Any]], logger: loggin
         seeding_time_week = torrent_info['seeding_time'] / SECONDS_PER_WEEK
         category = torrent_info.get('category', 'Unknown')
 
-        average_ratio_per_week = torrent_utils.calculate_average_ratio(torrent_info, log_file_path, logger, bonus_rules)
+        average_ratio_per_week = torrent_utils.calculate_average_ratio(torrent_info, log_file_path, logger, bonus_rules, config)
 
         truncated_name = (torrent_info['name'][:MAX_NAME_LENGTH - 3] + '...') if len(torrent_info['name']) > MAX_NAME_LENGTH else torrent_info['name']
 

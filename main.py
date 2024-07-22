@@ -54,7 +54,8 @@ def check_space_and_remove_torrents(session: requests.Session, logger: Logger, c
         api_address,
         test_mode,
         os.path.join(script_directory, 'torrent_ratio_log.json'),
-        bonus_rules
+        bonus_rules,
+        config
     ) if space_needed > 0 or additional_space_needed > 0 else []
 
     torrents_removed_by_count = torrent_utils.remove_torrents_by_count(
@@ -67,23 +68,24 @@ def check_space_and_remove_torrents(session: requests.Session, logger: Logger, c
         test_mode,
         os.path.join(script_directory, 'torrent_ratio_log.json'),
         bonus_rules,
-        config.getboolean('cleanup', 'sort_count_removal_by_size', fallback=False)
+        config.getboolean('cleanup', 'sort_count_removal_by_size', fallback=False),
+        config
     )
 
     all_removed_torrents = torrents_removed_by_space + torrents_removed_by_count
 
     if all_removed_torrents:
-        log_removal_info(logger, free_space, total_remaining_size_gb, space_needed, additional_space_needed, all_removed_torrents, test_mode, bonus_rules)
+        log_removal_info(logger, free_space, total_remaining_size_gb, space_needed, additional_space_needed, all_removed_torrents, test_mode, bonus_rules, config)
 
 def log_removal_info(logger: Logger, free_space: float, total_remaining_size_gb: float, 
                      space_needed: float, additional_space_needed: float, 
                      all_removed_torrents: List[Dict[str, Any]], test_mode: bool,
-                     bonus_rules: Dict[str, Dict[str, Any]]) -> None:
+                     bonus_rules: Dict[str, Dict[str, Any]], config: ConfigParser) -> None:
     """Log information about removed or would-be removed torrents."""
     logger.info(f"{'TEST MODE: ' if test_mode else ''}Free: {free_space:.2f} GB, "
                 f"DLremain: {total_remaining_size_gb:.1f} GB, "
                 f"Diskneed: {max(space_needed, additional_space_needed):.0f} GB")
-    logger_utils.log_torrent_removal_info(all_removed_torrents, logger, test_mode, bonus_rules)
+    logger_utils.log_torrent_removal_info(all_removed_torrents, logger, test_mode, bonus_rules, config)
 
 def main(test_mode: bool, logger: Logger, handler: Any, config: ConfigParser, session: requests.Session) -> None:
     try:

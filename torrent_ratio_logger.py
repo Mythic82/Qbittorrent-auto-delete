@@ -11,8 +11,6 @@ from contextlib import contextmanager
 # Constants
 API_V2_BASE = "/api/v2"
 SECONDS_PER_DAY = 24 * 3600
-MAX_ENTRIES = 28
-PURGE_DAYS = [8, 16, 24]
 
 def load_configuration(script_directory: str) -> configparser.ConfigParser:
     """Load configuration from the config file."""
@@ -64,9 +62,9 @@ def save_data(file_path: str, data: Dict[str, List[Dict[str, Any]]], logger: Any
     except Exception as e:
         logger.error(f"Error saving ratio log file: {e}")
 
-def process_torrent_data(torrents: List[Dict[str, Any]], old_data: Dict[str, List[Dict[str, Any]]]) -> Dict[str, List[Dict[str, Any]]]:
+def process_torrent_data(torrents: List[Dict[str, Any]], old_data: Dict[str, List[Dict[str, Any]]], max_entries: int, purge_days: List[int]) -> Dict[str, List[Dict[str, Any]]]:
     """Process torrent data and update the log."""
-    new_data = old_data.copy()  # Start with a copy of old data
+    new_data = old_data.copy()
     current_date = datetime.now().strftime('%Y-%m-%d')
 
     for torrent in torrents:
@@ -80,15 +78,15 @@ def process_torrent_data(torrents: List[Dict[str, Any]], old_data: Dict[str, Lis
             entries = new_data[torrent_hash]
             if not entries or entries[-1]['date'] != current_date:
                 entries.append(ratio_record)
-                if seed_days in PURGE_DAYS and len(entries) > 1:
+                if purge_days and seed_days in purge_days and len(entries) > 1:
                     entries.pop(0)
 
-            entries = entries[-MAX_ENTRIES:]
+            entries = entries[-max_entries:]
             new_data[torrent_hash] = entries
 
     return new_data
 
-def log_statistics(new_data: Dict[str, List[Dict[str, Any]]], old_data: Dict[str, List[Dict[str, Any]]], logger: Any) -> None:
+def log_statistics(new_data: Dict[str, List[Dict[str, Any]]], old_data: Dict[str, List[Dict[str, Any]]], logger: Any, max_entries: int) -> None:
     """Log statistics about the updated data."""
     total_torrents = len(new_data)
     
@@ -98,22 +96,22 @@ def log_statistics(new_data: Dict[str, List[Dict[str, Any]]], old_data: Dict[str
     new_torrents_added = len(new_torrent_set - old_torrent_set)
     torrents_removed = len(old_torrent_set - new_torrent_set)
     
-    torrents_with_max_entries = sum(1 for entries in new_data.values() if len(entries) >= MAX_ENTRIES)
+    torrents_with_max_entries = sum(1 for entries in new_data.values() if len(entries) >= max_entries)
 
     logger.info(f"Total torrents in log: {total_torrents}, "
                 f"New torrents added: {new_torrents_added}, "
                 f"Torrents removed: {torrents_removed}, "
                 f"Torrents with max entries: {torrents_with_max_entries}")
 
-def update_ratio_log(api_address: str, username: str, password: str, log_file_path: str, logger: Any) -> None:
+def update_ratio_log(api_address: str, username: str, password: str, log_file_path: str, logger: Any, max_entries: int, purge_days: List[int]) -> None:
     """Main function to update the ratio log."""
     try:
         with api_session(api_address, username, password) as session:
             torrents = get_torrent_list(api_address, session)
             old_data = load_existing_data(log_file_path)
-            new_data = process_torrent_data(torrents, old_data)
+            new_data = process_torrent_data(torrents, old_data, max_entries, purge_days)
             save_data(log_file_path, new_data, logger)
-            log_statistics(new_data, old_data, logger)
+            log_statistics(new_data, old_data, logger, max_entries)
 
     except Exception as e:
         logger.error(f"Failed to update ratio log: {e}")
@@ -131,6 +129,10 @@ if __name__ == "__main__":
 
     log_file_path = os.path.join(script_directory, 'torrent_ratio_log.json')
 
+    max_entries = config.getint('torrent_ratio_logger', 'max_entries', fallback=28)
+    purge_days_str = config.get('torrent_ratio_logger', 'purge_days', fallback='')
+    purge_days = [int(day.strip()) for day in purge_days_str.split(',') if day.strip()]
+
     logger.info("Running torrent ratio logger script")
-    update_ratio_log(api_address, username, password, log_file_path, logger)
+    update_ratio_log(api_address, username, password, log_file_path, logger, max_entries, purge_days)
     log_handler.write_log_entries()

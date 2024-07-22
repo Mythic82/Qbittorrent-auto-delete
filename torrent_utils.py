@@ -107,8 +107,7 @@ def apply_bonus_rules(torrent: Dict[str, Any], bonus_rules: Dict[str, Dict[str, 
     
     return 1.0
 
-def calculate_average_ratio(torrent: Dict[str, Any], log_file_path: str, logger: Logger, bonus_rules: Dict[str, Dict[str, Any]]) -> float:
-    """Calculate average ratio for a torrent."""
+def calculate_average_ratio(torrent: Dict[str, Any], log_file_path: str, logger: Logger, bonus_rules: Dict[str, Dict[str, Any]], config: configparser.ConfigParser) -> float:
     ratio_log = load_ratio_log(log_file_path)
     ratio_records = ratio_log.get(torrent['hash'], [])
     
@@ -117,14 +116,18 @@ def calculate_average_ratio(torrent: Dict[str, Any], log_file_path: str, logger:
     weeks_seeded = torrent.get('seeding_time', 0) / SECONDS_PER_WEEK
     num_records_weeks = len(ratio_records) / 7
     
+    min_ratio_change = config.getfloat('ratio_calculation', 'min_ratio_change', fallback=0.3)
+    min_weeks_seeded = config.getfloat('ratio_calculation', 'min_weeks_seeded', fallback=3)
+
     if ratio_old is not None:
         ratio_change = current_ratio - ratio_old
-        ratio_change = max(ratio_change, 0.3) if num_records_weeks <= 3 else ratio_change
-        average_ratio_change = ratio_change / num_records_weeks if ratio_change != 0 else 0
-    elif current_ratio < 0.3 and weeks_seeded <= 3:
-        average_ratio_change = 0.3 / weeks_seeded
+        if min_weeks_seeded > 0:
+            ratio_change = max(ratio_change, min_ratio_change) if num_records_weeks <= min_weeks_seeded else ratio_change
+        average_ratio_change = ratio_change / num_records_weeks if ratio_change != 0 and num_records_weeks > 0 else 0
+    elif min_ratio_change > 0 and min_weeks_seeded > 0 and current_ratio < min_ratio_change and weeks_seeded <= min_weeks_seeded:
+        average_ratio_change = min_ratio_change / weeks_seeded if weeks_seeded > 0 else 0
     else:
-        average_ratio_change = current_ratio / weeks_seeded if current_ratio != 0 else 0
+        average_ratio_change = current_ratio / weeks_seeded if weeks_seeded > 0 else 0
 
     bonus_multiplier = apply_bonus_rules(torrent, bonus_rules, logger)
     average_ratio_change *= bonus_multiplier
@@ -183,16 +186,16 @@ def remove_torrent(session: requests.Session, api_address: str, torrent_hash: st
 
 def remove_torrents_by_space(torrents: List[Dict[str, Any]], categories_space: List[str], space_needed: float, drive_path: str, 
                              logger: Logger, session: requests.Session, api_address: str, test_mode: bool, log_file_path: str,
-                             bonus_rules: Dict[str, Dict[str, Any]]) -> List[Dict[str, Any]]:
+                             bonus_rules: Dict[str, Dict[str, Any]], config: configparser.ConfigParser) -> List[Dict[str, Any]]:
     """Remove torrents to free up space."""
     space_freed = 0.0
     torrents_removed_info = []
 
     torrents_in_categories = [t for t in torrents if t['category'].lower() in categories_space]
     for torrent in torrents_in_categories:
-        torrent['average_ratio'] = calculate_average_ratio(torrent, log_file_path, logger, bonus_rules)
+        torrent['average_ratio'] = calculate_average_ratio(torrent, log_file_path, logger, bonus_rules, config)
 
-    torrents_sorted = sorted(torrents_in_categories, key=lambda t: (t['average_ratio'], -t['seeding_time']))
+    torrents_sorted = sorted(torrents_in_categories, key=lambda t: (t['average_ratio'], -t['seeding_time'], -t['size'], t['name']))
 
     for torrent in torrents_sorted:
         if space_freed >= space_needed:
@@ -215,7 +218,7 @@ def remove_torrents_by_space(torrents: List[Dict[str, Any]], categories_space: L
 def remove_torrents_by_count(torrents: List[Dict[str, Any]], categories_number: List[str], max_torrents: int, 
                              logger: Logger, session: requests.Session, api_address: str, test_mode: bool,
                              log_file_path: str, bonus_rules: Dict[str, Dict[str, Any]], 
-                             sort_by_size: bool = False) -> List[Dict[str, Any]]:
+                             sort_by_size: bool, config: configparser.ConfigParser) -> List[Dict[str, Any]]:
     """Remove torrents to maintain a maximum count per category."""
     torrents_removed_info = []
 
@@ -229,12 +232,10 @@ def remove_torrents_by_count(torrents: List[Dict[str, Any]], categories_number: 
                 sorted_torrents = sorted(category_torrents, key=lambda t: t['size'], reverse=True)
             else:
                 for torrent in category_torrents:
-                    torrent['average_ratio'] = calculate_average_ratio(torrent, log_file_path, logger, bonus_rules)
-                sorted_torrents = sorted(category_torrents, key=lambda t: (t['average_ratio'], -t['seeding_time']))
+                    torrent['average_ratio'] = calculate_average_ratio(torrent, log_file_path, logger, bonus_rules, config)
+                sorted_torrents = sorted(category_torrents, key=lambda t: (t['average_ratio'], -t['seeding_time'], -t['size'], t['name']))
             
             torrents_to_remove = sorted_torrents[:len(category_torrents) - max_torrents]
-            
-            logger.info(f"Removing {len(torrents_to_remove)} torrents from category '{category}'")
             
             for torrent in torrents_to_remove:
                 torrent_info = {
