@@ -10,11 +10,7 @@ Ensure your best-performing torrents keep seeding
 
 Say goodbye to manual torrent management and hello to a more efficient, hands-off approach!
 
-## Support the Project
-
-If you find this project helpful and want to support its development, you can buy me a coffee!
-
-[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-☕-yellow.svg)](https://www.buymeacoffee.com/Mythic82)
+If you found this script useful, you can [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-☕-yellow.svg)](https://www.buymeacoffee.com/Mythic82)
 
 ## Overview
 
