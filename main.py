@@ -10,7 +10,7 @@ from configparser import ConfigParser
 
 def check_space_and_remove_torrents(session: requests.Session, logger: Logger, config: ConfigParser, test_mode: bool, bonus_rules: Dict[str, Dict[str, Any]]) -> None:
     api_address = config.get('login', 'address')
-    download_minspace_gb = config.getfloat('cleanup', 'download_minspace_gb')
+    download_minspace_gb = config.get('cleanup', 'download_minspace_gb', fallback='')
     min_space_gb = config.getfloat('cleanup', 'min_space_gb')
     categories_space = [cat.strip().lower() for cat in config.get('cleanup', 'categories_to_check_for_space').split(',')]
     categories_count = [cat.strip().lower() for cat in config.get('cleanup', 'categories_to_check_for_number').split(',')]
@@ -37,7 +37,14 @@ def check_space_and_remove_torrents(session: requests.Session, logger: Logger, c
     total_remaining_size_gb = sum((t['size'] * (1 - t['progress'])) for t in downloading_torrents) / (1024 ** 3)
 
     space_left_after_downloads = free_space - total_remaining_size_gb
-    additional_space_needed = max(0, download_minspace_gb - space_left_after_downloads)
+    
+    # Check if download_minspace_gb is set and not empty
+    if download_minspace_gb and download_minspace_gb.strip():
+        download_minspace_gb = float(download_minspace_gb)
+        additional_space_needed = max(0, download_minspace_gb - space_left_after_downloads)
+    else:
+        additional_space_needed = 0
+
     space_needed = max(0, min_space_gb - free_space)
 
     category_rules = torrent_utils.get_category_rules(config)

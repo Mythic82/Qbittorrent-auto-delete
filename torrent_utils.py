@@ -64,18 +64,17 @@ def load_ratio_log(log_file_path: str) -> Dict[str, List[Dict[str, Any]]]:
 def load_bonus_rules(config: configparser.ConfigParser) -> Dict[str, Dict[str, Any]]:
     """Load bonus rules from config."""
     bonus_rules = {}
-    categories = [cat.strip() for cat in config.get('bonus_rules', 'categories').split(',')]
-    
-    for category in categories:
-        section = f'{category}_bonus'
-        if config.has_section(section):
-            bonus_rules[category] = {
-                'min_weeks': config.getfloat(section, 'min_weeks'),
-                'time_multipliers': parse_multipliers(config.get(section, 'time_multipliers')),
-                'size_multipliers': parse_multipliers(config.get(section, 'size_multipliers')),
-                'extra_multiplier_weeks': config.getfloat(section, 'extra_multiplier_weeks'),
-                'extra_multiplier_value': config.getfloat(section, 'extra_multiplier_value')
-            }
+    if 'bonus_rules' in config:
+        for category, rule_string in config['bonus_rules'].items():
+            category_rules = {}
+            for rule in rule_string.split(', '):
+                key, value = rule.split(':', 1)
+                if key in ['min_weeks', 'extra_multiplier_weeks', 'extra_multiplier_value']:
+                    category_rules[key] = float(value)
+                elif key in ['time_multipliers', 'size_multipliers']:
+                    category_rules[key] = parse_multipliers(value)
+            if category_rules:  # Only add the category if it has any bonus rules
+                bonus_rules[category] = category_rules
     return bonus_rules
 
 def parse_multipliers(multiplier_string: str) -> List[Tuple[float, float]]:
@@ -96,15 +95,22 @@ def apply_bonus_rules(torrent: Dict[str, Any], bonus_rules: Dict[str, Dict[str, 
     weeks_seeded = torrent.get('seeding_time', 0) / SECONDS_PER_WEEK
     torrent_size = torrent.get('size', 0)
     
-    if torrent_category in bonus_rules and weeks_seeded > bonus_rules[torrent_category]['min_weeks']:
+    if torrent_category in bonus_rules:
+        category_rules = bonus_rules[torrent_category]
         logger.debug(f"{torrent_category} category adjustments for torrent: {torrent['name']}")
         
-        time_multiplier = get_multiplier(weeks_seeded, bonus_rules[torrent_category]['time_multipliers'])
-        size_multiplier = get_multiplier(torrent_size / BYTES_TO_GB, bonus_rules[torrent_category]['size_multipliers'])
-        extra_multiplier = (bonus_rules[torrent_category]['extra_multiplier_value'] 
-                            if weeks_seeded >= bonus_rules[torrent_category]['extra_multiplier_weeks'] else 1.0)
+        multiplier = 1.0
+        if 'time_multipliers' in category_rules:
+            time_multiplier = get_multiplier(weeks_seeded, category_rules['time_multipliers'])
+            multiplier *= time_multiplier
+        if 'size_multipliers' in category_rules:
+            size_multiplier = get_multiplier(torrent_size / BYTES_TO_GB, category_rules['size_multipliers'])
+            multiplier *= size_multiplier
+        if 'extra_multiplier_weeks' in category_rules and 'extra_multiplier_value' in category_rules:
+            if weeks_seeded >= category_rules['extra_multiplier_weeks']:
+                multiplier *= category_rules['extra_multiplier_value']
         
-        return time_multiplier * size_multiplier * extra_multiplier
+        return multiplier
     
     return 1.0
 
@@ -138,17 +144,14 @@ def calculate_average_ratio(torrent: Dict[str, Any], log_file_path: str, logger:
 def get_category_rules(config: configparser.ConfigParser) -> Dict[str, Dict[str, float]]:
     """Get seed time and ratio rules for each category."""
     rules = {}
-    for key, value in config['seed_rules'].items():
-        parts = key.split('_')
-        if len(parts) < 2:
-            continue  # Skip invalid keys
-        category = parts[0].lower()  # Convert to lowercase
-        rule_type = '_'.join(parts[1:])
-        
-        if category not in rules:
-            rules[category] = {}
-        rules[category][rule_type] = float(value)
-    
+    for category, rule_string in config['seed_rules'].items():
+        category_rules = {}
+        for rule in rule_string.split(', '):
+            key, value = rule.split(':')
+            if key in ['min_seed_time', 'min_ratio']:
+                category_rules[key] = float(value)
+        if category_rules:  # Only add the category if it has any rules
+            rules[category.lower()] = category_rules
     return rules
 
 def filter_torrents_by_rules(torrents: List[Dict[str, Any]], category_rules: Dict[str, Dict[str, float]], logger: Logger) -> List[Dict[str, Any]]:
@@ -167,8 +170,8 @@ def filter_torrents_by_rules(torrents: List[Dict[str, Any]], category_rules: Dic
                 filtered_torrents.append(torrent)
                 logger.debug(f"Torrent {torrent['name']} eligible for removal: "
                              f"category: {category}, "
-                             f"seed time: {torrent['seeding_time']} >= {min_seed_time}, "
-                             f"ratio: {torrent['ratio']} >= {min_ratio}")
+                             f"seed time: {torrent['seeding_time']} >= {min_seed_time if min_seed_time is not None else 'N/A'}, "
+                             f"ratio: {torrent['ratio']} >= {min_ratio if min_ratio is not None else 'N/A'}")
         else:
             logger.debug(f"No rules for category: {category}")
     
