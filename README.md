@@ -90,7 +90,7 @@ Before starting, ensure you have the following installed on your Unraid system:
 - User Scripts Addon (for managing your scripts)
 
 ### Step 1: Edit Your Configuration 
-Edit your config.ini file to customize it according to your preferences. This file is essential for configuring your scripts.
+Edit your config.ini file to customize it according to your preferences.
 
 ### Step 2: Install Python and Required Packages at Startup 
 To install Python packages automatically at array startup, use the following script:
