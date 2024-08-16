@@ -129,13 +129,12 @@ Set up a cron job with the following timing:
 
 This configuration runs the script every day at 00:01 AM.
 
-### Step 4: Run the Main Script Hourly 
-To run the main script every hour (e.g., at 15 minutes past the hour), use the following script:
+### Step 4: Run the Main Script
 
     #!/bin/bash
     python3 /mnt/path/main.py
 
-Set up a cron job with the following timing:
+Set up a cron job with the following timing or whatever you would like:
 
     15 * * * *
 
