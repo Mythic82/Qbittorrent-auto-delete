@@ -133,7 +133,7 @@ This configuration runs the script every day at 00:01 AM.
 To run the main script every hour (e.g., at 15 minutes past the hour), use the following script:
 
     #!/bin/bash
-    python3 /mnt/scrptpath/main.py
+    python3 /mnt/path/main.py
 
 Set up a cron job with the following timing:
 
@@ -144,6 +144,6 @@ This configuration runs the script every hour at 15 minutes past.
 ### Step 5: Test Mode 
 To test changes without making actual deletions, add the --test flag:
 
-    python3 /mnt/scrptpath/main.py --test
+    python3 /mnt/path/main.py --test
 
 This simulates the actions, and deletelog.txt will show what the script would have done without making any real changes.
