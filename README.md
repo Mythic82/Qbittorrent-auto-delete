@@ -81,7 +81,7 @@ python main.py --test
 
 # Unraid Setup Guide
 
-This guide will help you set up and manage Python scripts on Unraid. Follow the steps below to install Python, configure your scripts, and set up automated tasks.
+Follow the steps below to install Python, configure your script, and set up automated tasks.
 
 ### Prerequisites 
 Before starting, ensure you have the following installed on your Unraid system:
