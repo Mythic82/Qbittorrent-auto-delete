@@ -4,7 +4,7 @@ import configparser
 import os
 import sys
 from datetime import datetime
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Tuple, Set
 import logger_utils
 from contextlib import contextmanager
 
@@ -62,13 +62,15 @@ def save_data(file_path: str, data: Dict[str, List[Dict[str, Any]]], logger: Any
     except Exception as e:
         logger.error(f"Error saving ratio log file: {e}")
 
-def process_torrent_data(torrents: List[Dict[str, Any]], old_data: Dict[str, List[Dict[str, Any]]], max_entries: int, purge_days: List[int]) -> Dict[str, List[Dict[str, Any]]]:
+def process_torrent_data(torrents: List[Dict[str, Any]], old_data: Dict[str, List[Dict[str, Any]]], max_entries: int, purge_days: List[int]) -> Tuple[Dict[str, List[Dict[str, Any]]], Set[str]]:
     """Process torrent data and update the log."""
     new_data = old_data.copy()
     current_date = datetime.now().strftime('%Y-%m-%d')
+    current_hashes = set()
 
     for torrent in torrents:
         torrent_hash = torrent['hash']
+        current_hashes.add(torrent_hash)
         seed_days = torrent['seeding_time'] // SECONDS_PER_DAY
         ratio_record = {'date': current_date, 'ratio': torrent['ratio']}
 
@@ -84,17 +86,16 @@ def process_torrent_data(torrents: List[Dict[str, Any]], old_data: Dict[str, Lis
             entries = entries[-max_entries:]
             new_data[torrent_hash] = entries
 
-    return new_data
+    return new_data, current_hashes
 
-def log_statistics(new_data: Dict[str, List[Dict[str, Any]]], old_data: Dict[str, List[Dict[str, Any]]], logger: Any, max_entries: int) -> None:
+def log_statistics(new_data: Dict[str, List[Dict[str, Any]]], old_data: Dict[str, List[Dict[str, Any]]], current_hashes: Set[str], logger: Any, max_entries: int) -> None:
     """Log statistics about the updated data."""
     total_torrents = len(new_data)
     
     old_torrent_set = set(old_data.keys())
-    new_torrent_set = set(new_data.keys())
     
-    new_torrents_added = len(new_torrent_set - old_torrent_set)
-    torrents_removed = len(old_torrent_set - new_torrent_set)
+    new_torrents_added = len(current_hashes - old_torrent_set)
+    torrents_removed = len(old_torrent_set - current_hashes)
     
     torrents_with_max_entries = sum(1 for entries in new_data.values() if len(entries) >= max_entries)
 
@@ -109,9 +110,9 @@ def update_ratio_log(api_address: str, username: str, password: str, log_file_pa
         with api_session(api_address, username, password) as session:
             torrents = get_torrent_list(api_address, session)
             old_data = load_existing_data(log_file_path)
-            new_data = process_torrent_data(torrents, old_data, max_entries, purge_days)
+            new_data, current_hashes = process_torrent_data(torrents, old_data, max_entries, purge_days)
             save_data(log_file_path, new_data, logger)
-            log_statistics(new_data, old_data, logger, max_entries)
+            log_statistics(new_data, old_data, current_hashes, logger, max_entries)
 
     except Exception as e:
         logger.error(f"Failed to update ratio log: {e}")
