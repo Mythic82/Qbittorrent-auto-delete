@@ -121,7 +121,7 @@ Save this script and configure it to run at array startup using the User Scripts
 To log torrent ratios daily, use the following script. Schedule it to run daily at 00:01:
 
     #!/bin/bash
-    python3 /mnt/scrptpath/torrent_ratio_logger.py
+    python3 /mnt/path/torrent_ratio_logger.py
 
 Set up a cron job with the following timing:
 
