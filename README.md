@@ -76,3 +76,73 @@ Add to your crontab in linux / User scripts in Unraid / Task Scheduler in window
 
 Run with `--test` flag to see potential actions without making changes:
 python main.py --test
+
+---
+
+# Unraid Setup Guide
+
+Follow the steps below to install Python, configure your script, and set up automated tasks.
+
+### Prerequisites 
+Before starting, ensure you have the following installed on your Unraid system:
+
+- Nerd Tools Addon (for Python 3 installation) 
+- User Scripts Addon (for managing your scripts)
+
+### Step 1: Edit Your Configuration 
+Edit your config.ini file to customize it according to your preferences.
+
+### Step 2: Install Required Packages at Startup 
+To install Python packages automatically at array startup, use the following script:
+
+    #!/bin/bash
+    # This script installs pip and required Python packages at boot
+    
+    # Check if pip is already installed
+    if ! command -v pip3 &> /dev/null
+    then
+        echo "pip not found, installing..."
+        # Download get-pip.py
+        curl -s https://bootstrap.pypa.io/get-pip.py -o /boot/config/get-pip.py
+        # Install pip
+        python3 /boot/config/get-pip.py
+    else
+        echo "pip already installed"
+    fi
+    
+    # Install required Python packages
+    python3 -m pip install --quiet requests configparser
+    
+    echo "Python environment setup complete."
+
+Save this script and configure it to run at array startup using the User Scripts addon.
+
+### Step 3: Set Up Logging 
+To log torrent ratios daily, use the following script. Schedule it to run daily at 00:01:
+
+    #!/bin/bash
+    python3 /mnt/path/torrent_ratio_logger.py
+
+Set up a cron job with the following timing:
+
+    1 0 * * *
+
+This configuration runs the script every day at 00:01 AM.
+
+### Step 4: Run the Main Script
+
+    #!/bin/bash
+    python3 /mnt/path/main.py
+
+Set up a cron job with the following timing or whatever you would like:
+
+    15 * * * *
+
+This configuration runs the script every hour at 15 minutes past.
+
+### Step 5: Test Mode 
+To test changes without making actual deletions, add the --test flag:
+
+    python3 /mnt/path/main.py --test
+
+This simulates the actions, and deletelog.txt will show what the script would have done without making any real changes.
