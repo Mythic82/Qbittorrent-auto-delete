@@ -22,13 +22,11 @@ class PrependingRotatingFileHandler(RotatingFileHandler):
     def emit(self, record: logging.LogRecord) -> None:
         if self.shouldRollover(record):
             self.doRollover()
-
         if self.first_entry:
             log_entry = "-" * SEPARATOR_LENGTH + "\n" + self.format(record)
             self.first_entry = False
         else:
             log_entry = record.getMessage()
-
         self.log_entries.append(log_entry)
 
     def write_log_entries(self) -> None:
@@ -44,7 +42,7 @@ class PrependingRotatingFileHandler(RotatingFileHandler):
                 self.log_entries = []
                 self.first_entry = True
 
-def setup_logger(log_file_name: str = 'deletelog.txt') -> Tuple[logging.Logger, PrependingRotatingFileHandler]:
+def setup_logger(log_file_name: str = 'deletelog.txt', config: configparser.ConfigParser = None) -> Tuple[logging.Logger, PrependingRotatingFileHandler]:
     script_directory = os.path.dirname(os.path.abspath(__file__))
     log_file_path = os.path.join(script_directory, log_file_name)
     
@@ -53,29 +51,30 @@ def setup_logger(log_file_name: str = 'deletelog.txt') -> Tuple[logging.Logger, 
     handler.setFormatter(log_formatter)
     logger = logging.getLogger()
     logger.addHandler(handler)
-    logger.setLevel(logging.INFO)
+    
+    # Get log level from config, default to INFO
+    if config and config.has_option('logging', 'log_level'):
+        log_level_str = config.get('logging', 'log_level').upper()
+        log_level = getattr(logging, log_level_str, logging.INFO)
+    else:
+        log_level = logging.INFO
+    
+    logger.setLevel(log_level)
     return logger, handler
 
 def log_torrent_removal_info(torrents_info: List[Dict[str, Any]], logger: logging.Logger, test_mode: bool, bonus_rules: Dict[str, Dict[str, Any]], config: configparser.ConfigParser) -> None:
     if not torrents_info:
         logger.info("No torrents to remove based on current rules.")
         return
-
     logger.info(f"Total torrents to remove: {len(torrents_info)}")
-
     log_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'torrent_ratio_log.json')
-
     for torrent_info in torrents_info:
         size_gb = torrent_info['size'] / BYTES_TO_GB
         seeding_time_week = torrent_info['seeding_time'] / SECONDS_PER_WEEK
         category = torrent_info.get('category', 'Unknown')
-
         average_ratio_per_week = torrent_utils.calculate_average_ratio(torrent_info, log_file_path, logger, bonus_rules, config)
-
         truncated_name = (torrent_info['name'][:MAX_NAME_LENGTH - 3] + '...') if len(torrent_info['name']) > MAX_NAME_LENGTH else torrent_info['name']
-
         size_str = f"{size_gb:.2f} GB".rjust(10)
         seeding_time_str = f"{seeding_time_week:.1f} Weeks".rjust(11)
         ratio_week_str = f"{average_ratio_per_week:.3f} R/W".rjust(11)
-
         logger.info(f"{truncated_name:<69}  \t{category} \t{size_str} \t{seeding_time_str} \t{ratio_week_str}")
