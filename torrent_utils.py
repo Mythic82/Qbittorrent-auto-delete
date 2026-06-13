@@ -91,7 +91,15 @@ def has_hardlinked_files(torrent: Dict[str, Any], session: requests.Session, api
     """
     Check if any files in the torrent are hardlinked.
     Returns True if any file has more than 1 hardlink (indicating it's hardlinked elsewhere).
+
+    If the 'check_hardlinks' option in the [cleanup] section of the config is
+    turned off (e.g. 'off', 'no', 'false', '0'), the check is skipped entirely
+    and this function returns False without making any API/filesystem calls.
     """
+    # Allow disabling the hardlink check via config (defaults to on if missing)
+    if not config.getboolean('cleanup', 'check_hardlinks', fallback=True):
+        return False
+
     try:
         # Get torrent save path
         save_path = torrent.get('save_path', '')
